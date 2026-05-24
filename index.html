@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eye of Ra - 3D Artifact</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0a0a0c;
+            font-family: system-ui, -apple-system, sans-serif;
+            color: white;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.2rem;
+            letter-spacing: 0.2em;
+            color: #ffaa00;
+            pointer-events: none;
+            transition: opacity 1s;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">AWAKENING THE SUN GOD...</div>
+
+    <!-- Single-file application using ES Modules from CDN -->
+    <script type="module">
+        import * as THREE from 'https://esm.sh/three@0.160.0';
+        import { OrbitControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+
+        // 1. Scene Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a0c); // Deep cinematic dark charcoal
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 0, 25);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = false; // We use a custom elegant rotation
+
+        // 2. Materials Setup
+        const goldMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffaa00,
+            metalness: 1.0,
+            roughness: 0.25,
+        });
+
+        const lapisMaterial = new THREE.MeshStandardMaterial({
+            color: 0x0f2a5b,
+            metalness: 0.1,
+            roughness: 0.7,
+        });
+
+        const rubyMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0xff0000,
+            emissive: 0x550000,
+            emissiveIntensity: 0.8,
+            metalness: 0.2,
+            roughness: 0.1,
+            transmission: 0.9,
+            thickness: 0.5,
+        });
+
+        // 3. Extrusion and Layout Config
+        // We use an array of materials [Face, Sides/Bevel] to create the cloisonné (inlay) look typical of Egyptian jewelry!
+        const inlayMaterials = [lapisMaterial, goldMaterial];
+        
+        const inlayExtrudeSettings = { 
+            depth: 0.3, 
+            bevelEnabled: true, 
+            bevelSegments: 4, 
+            steps: 2, 
+            bevelSize: 0.08, 
+            bevelThickness: 0.08 
+        };
+
+        const parts = new THREE.Group();
+
+        // 4. Geometry Construction
+
+        // A. Eye Solid Base (Gold Socket background)
+        const eyeSolid = new THREE.Shape();
+        eyeSolid.moveTo(-4, 0);
+        eyeSolid.bezierCurveTo(-2, 2.0, 2, 2.0, 4.5, 0);
+        eyeSolid.bezierCurveTo(2, -2.0, -2, -2.0, -4, 0);
+        const baseGeo = new THREE.ExtrudeGeometry(eyeSolid, { depth: 0.1, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05 });
+        const baseMesh = new THREE.Mesh(baseGeo, goldMaterial);
+        baseMesh.position.z = -0.05; // Placed slightly behind the outline
+        baseMesh.receiveShadow = true;
+        parts.add(baseMesh);
+
+        // B. Eye Outline (Eyelashes/liner)
+        const eyeOutline = new THREE.Shape();
+        eyeOutline.moveTo(-4.5, 0);
+        eyeOutline.bezierCurveTo(-2, 2.5, 2, 2.5, 5, 0);
+        eyeOutline.bezierCurveTo(2, -2.5, -2, -2.5, -4.5, 0);
+
+        const eyeHole = new THREE.Path();
+        eyeHole.moveTo(-4, 0);
+        eyeHole.bezierCurveTo(-2, 2.0, 2, 2.0, 4.5, 0);
+        eyeHole.bezierCurveTo(2, -2.0, -2, -2.0, -4, 0);
+        eyeOutline.holes.push(eyeHole);
+
+        const outlineGeo = new THREE.ExtrudeGeometry(eyeOutline, inlayExtrudeSettings);
+        const outlineMesh = new THREE.Mesh(outlineGeo, inlayMaterials);
+        outlineMesh.castShadow = true;
+        parts.add(outlineMesh);
+
+        // C. Pupil / Iris (Glowing Ruby)
+        const pupilGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.4, 64);
+        pupilGeo.rotateX(Math.PI / 2);
+        const pupilMesh = new THREE.Mesh(pupilGeo, rubyMaterial);
+        pupilMesh.position.set(0.25, 0, 0.1);
+        pupilMesh.castShadow = true;
+        
+        // Inner lighting inside the pupil representing the destructive fire of Ra
+        const pupillight = new THREE.PointLight(0xff2200, 3, 15);
+        pupillight.position.set(0, 0, 0.5);
+        pupilMesh.add(pupillight);
+        parts.add(pupilMesh);
+
+        // D. Eyebrow
+        const brow = new THREE.Shape();
+        brow.moveTo(-4.5, 2.8);
+        brow.bezierCurveTo(-1.5, 4.0, 2.5, 4.0, 5.5, 1.5); // Bottom inner curve
+        brow.lineTo(5.2, 2.4); // Right outer tip
+        brow.bezierCurveTo(2.5, 5.0, -1.5, 5.0, -4.8, 3.8); // Top outer return curve
+        brow.closePath();
+        
+        const browGeo = new THREE.ExtrudeGeometry(brow, inlayExtrudeSettings);
+        const browMesh = new THREE.Mesh(browGeo, inlayMaterials);
+        browMesh.castShadow = true;
+        parts.add(browMesh);
+
+        // E. Teardrop (Straight cheek marking, representing the falcon)
+        const drop = new THREE.Shape();
+        drop.moveTo(-2.2, -1.7);
+        drop.lineTo(-1.2, -1.9);
+        drop.lineTo(-1.2, -6.5);
+        drop.lineTo(-2.2, -6.5);
+        drop.closePath();
+        
+        const dropGeo = new THREE.ExtrudeGeometry(drop, inlayExtrudeSettings);
+        const dropMesh = new THREE.Mesh(dropGeo, inlayMaterials);
+        dropMesh.castShadow = true;
+        parts.add(dropMesh);
+
+        // F. Falcon Tail (Curved mark ending in a sweeping scroll)
+        const tail = new THREE.Shape();
+        tail.moveTo(0.2, -2.4);  // Inner top start point
+        tail.bezierCurveTo(2.5, -3.0, 4.5, -4.0, 5.0, -7.0); // Outer sweep down
+        tail.bezierCurveTo(5.1, -7.8, 4.2, -8.0, 3.6, -7.2); // Tight curl tip
+        tail.bezierCurveTo(2.8, -5.5, 1.5, -3.8, -0.6, -3.1); // Inner sweep up
+        tail.closePath();
+
+        const tailGeo = new THREE.ExtrudeGeometry(tail, inlayExtrudeSettings);
+        const tailMesh = new THREE.Mesh(tailGeo, inlayMaterials);
+        tailMesh.castShadow = true;
+        parts.add(tailMesh);
+
+        // 5. Centering and Wrap
+        // Calculate the bounding box of the entire generated eye to guarantee it rotates perfectly on its visual core
+        const box = new THREE.Box3().setFromObject(parts);
+        const center = box.getCenter(new THREE.Vector3());
+        parts.position.x -= center.x;
+        parts.position.y -= center.y;
+        parts.position.z -= center.z;
+
+        const wrapper = new THREE.Group();
+        wrapper.add(parts);
+        scene.add(wrapper);
+
+        // 6. Lighting Environment
+        const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambient);
+
+        // Dramatic directional warm light
+        const dirLight = new THREE.DirectionalLight(0xfff5e6, 3);
+        dirLight.position.set(10, 15, 12);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+
+        // A PointLight positioned tightly to craft sharp, brilliant golden highlights on the bevels
+        const specularLight = new THREE.PointLight(0xffffff, 5, 20);
+        specularLight.position.set(2, 3, 5);
+        scene.add(specularLight);
+
+        // Cool rim lighting from the lower back for rich cinematic framing
+        const rimLight = new THREE.DirectionalLight(0x4466ff, 1.5);
+        rimLight.position.set(-10, -5, -10);
+        scene.add(rimLight);
+
+        // Loading resolved
+        document.getElementById('loading').style.opacity = '0';
+
+        // 7. Animation / Rendering
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Majestic, elegant continuous rotation on the Y-axis
+            wrapper.rotation.y += 0.002;
+            
+            // Subtle, hovering divine float
+            wrapper.position.y = Math.sin(Date.now() * 0.001) * 0.2;
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
+
